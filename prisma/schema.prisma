@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model Agent {
+  id           String   @id @default(cuid())
+  name         String
+  department   String
+  description  String?
+  owner        String?
+  primaryModel String?
+  budgetLimit  Float    @default(0)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  apiCalls ApiCall[]
+  budgets  Budget[]
+}
+
+model ApiCall {
+  id               String   @id @default(cuid())
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id])
+  provider         String
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  inputCost        Float    @default(0)
+  outputCost       Float    @default(0)
+  totalCost        Float    @default(0)
+  latencyMs        Int      @default(0)
+  success          Boolean  @default(true)
+  errorMessage     String?
+  requestMetadata  String?
+  responseMetadata String?
+  createdAt        DateTime @default(now())
+
+  @@index([agentId])
+  @@index([createdAt])
+  @@index([provider])
+  @@index([model])
+}
+
+model Budget {
+  id           String  @id @default(cuid())
+  agentId      String?
+  agent        Agent?  @relation(fields: [agentId], references: [id])
+  department   String?
+  type         String
+  monthlyLimit Float
+  warnAt       Float    @default(0.7)
+  criticalAt   Float    @default(0.9)
+  blockAt      Float    @default(1.0)
+  month        String
+  isOverridden Boolean  @default(false)
+  overrideNote String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([agentId])
+  @@index([department])
+  @@index([month])
+}
+
+model Settings {
+  id    String @id @default(cuid())
+  key   String @unique
+  value String
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  action    String
+  entity    String
+  entityId  String?
+  oldValue  String?
+  newValue  String?
+  note      String?
+  createdAt DateTime @default(now())
+}
