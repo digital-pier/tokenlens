@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma/client";
 
-export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const url = new URL(req.url);
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
@@ -13,23 +14,23 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const startDate = from ? new Date(from) : new Date(now.getFullYear(), now.getMonth(), 1);
     const endDate = to ? new Date(to) : now;
 
-    const agent = await prisma.agent.findUnique({ where: { id: params.id } });
+    const agent = await prisma.agent.findUnique({ where: { id } });
     if (!agent) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
     const [calls, totalCount] = await Promise.all([
       prisma.apiCall.findMany({
-        where: { agentId: params.id, createdAt: { gte: startDate, lte: endDate } },
+        where: { agentId: id, createdAt: { gte: startDate, lte: endDate } },
         orderBy: { createdAt: "desc" },
         take: limit,
         skip: (page - 1) * limit,
       }),
       prisma.apiCall.count({
-        where: { agentId: params.id, createdAt: { gte: startDate, lte: endDate } },
+        where: { agentId: id, createdAt: { gte: startDate, lte: endDate } },
       }),
     ]);
 
     const allCalls = await prisma.apiCall.findMany({
-      where: { agentId: params.id, createdAt: { gte: startDate, lte: endDate } },
+      where: { agentId: id, createdAt: { gte: startDate, lte: endDate } },
       select: {
         totalCost: true, inputCost: true, outputCost: true,
         promptTokens: true, completionTokens: true, totalTokens: true,
@@ -74,14 +75,14 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
 
     // Top 10 most expensive calls
     const topExpensive = await prisma.apiCall.findMany({
-      where: { agentId: params.id },
+      where: { agentId: id },
       orderBy: { totalCost: "desc" },
       take: 10,
     });
 
     // Error log
     const errorLog = await prisma.apiCall.findMany({
-      where: { agentId: params.id, success: false },
+      where: { agentId: id, success: false },
       orderBy: { createdAt: "desc" },
       take: 20,
     });
@@ -90,7 +91,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     const now2 = new Date();
     const month = `${now2.getFullYear()}-${String(now2.getMonth() + 1).padStart(2, "0")}`;
     const budget = await prisma.budget.findFirst({
-      where: { agentId: params.id, type: "agent", month },
+      where: { agentId: id, type: "agent", month },
     });
 
     // Dept avg
