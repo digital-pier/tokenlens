@@ -1,11 +1,8 @@
-/**
- * This route exists because the Anthropic SDK appends /v1/messages to whatever
- * baseURL you set. When a user sets baseURL to http://localhost:3000/api/proxy/llm,
- * the SDK calls http://localhost:3000/api/proxy/llm/v1/messages — this file handles that.
- */
+// The Anthropic SDK appends /v1/messages to baseURL, so this route handles
+// requests from apps using baseURL: "http://localhost:3000/api/proxy/llm"
 import { NextRequest, NextResponse } from "next/server";
 import { proxyLLMRequest, proxyLLMRequestStreaming } from "@/lib/proxy";
-import { buildProxyContext } from "../../route";
+import { buildProxyContext } from "@/lib/proxy/context";
 
 export async function POST(req: NextRequest) {
   try {
