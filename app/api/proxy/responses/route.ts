@@ -1,40 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { proxyLLMRequest, proxyLLMRequestStreaming } from "@/lib/proxy";
-import { buildProxyContext } from "@/lib/proxy/context";
+import { proxyLLMRequest } from "@/lib/proxy";
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { agentId, agentName, department, provider, model, targetUrl, forwardHeaders } =
-      buildProxyContext(req, body);
 
-    // Streaming request — pipe SSE straight back to the client
-    if (body.stream === true) {
-      const stream = await proxyLLMRequestStreaming({
-        agentId,
-        agentName,
-        department,
-        targetUrl,
-        model,
-        headers: forwardHeaders,
-        body,
-      });
+    const agentId = req.headers.get("x-agent-id") || "unknown";
+    const agentName = req.headers.get("x-agent-name") || "Unknown Agent";
+    const department = req.headers.get("x-department") || "Unknown";
+    const model = body.model || "unknown";
 
-      return new Response(stream, {
-        headers: {
-          "Content-Type": "text/event-stream",
-          "Cache-Control": "no-cache",
-          Connection: "keep-alive",
-        },
-      });
-    }
+    const forwardHeaders: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
 
-    // Non-streaming request
+    const authHeader = req.headers.get("authorization");
+    if (authHeader) forwardHeaders["Authorization"] = authHeader;
+
     const result = await proxyLLMRequest({
       agentId,
       agentName,
       department,
-      targetUrl,
+      targetUrl: "https://api.openai.com/v1/responses",
       model,
       headers: forwardHeaders,
       body,
@@ -48,7 +35,7 @@ export async function POST(req: NextRequest) {
           completionTokens: result.completionTokens,
           totalTokens: result.totalTokens,
           latencyMs: result.latencyMs,
-          provider,
+          provider: "openai",
           model,
         },
       },

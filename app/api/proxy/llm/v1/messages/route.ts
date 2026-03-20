@@ -1,3 +1,5 @@
+// The Anthropic SDK appends /v1/messages to baseURL, so this route handles
+// requests from apps using baseURL: "http://localhost:3000/api/proxy/llm"
 import { NextRequest, NextResponse } from "next/server";
 import { proxyLLMRequest, proxyLLMRequestStreaming } from "@/lib/proxy";
 import { buildProxyContext } from "@/lib/proxy/context";
@@ -8,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { agentId, agentName, department, provider, model, targetUrl, forwardHeaders } =
       buildProxyContext(req, body);
 
-    // Streaming request — pipe SSE straight back to the client
+    // Streaming request
     if (body.stream === true) {
       const stream = await proxyLLMRequestStreaming({
         agentId,
@@ -41,21 +43,11 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      {
-        ...((result.data as object) || {}),
-        _tokenlens: {
-          promptTokens: result.promptTokens,
-          completionTokens: result.completionTokens,
-          totalTokens: result.totalTokens,
-          latencyMs: result.latencyMs,
-          provider,
-          model,
-        },
-      },
+      { ...((result.data as object) || {}) },
       { status: result.status }
     );
   } catch (err) {
-    console.error("Proxy error:", err);
+    console.error("Proxy /v1/messages error:", err);
     return NextResponse.json(
       { error: "Proxy request failed", details: err instanceof Error ? err.message : "Unknown error" },
       { status: 500 }
